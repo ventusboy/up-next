@@ -38,7 +38,7 @@ app.get('/login', (req, res) => {
   };
 
   var state = generateRandomString(16);
-  var scope = 'user-read-private user-read-email user-library-read playlist-read-private playlist-modify-private';
+  var scope = 'user-read-private user-read-email streaming user-read-playback-state user-library-read playlist-read-private playlist-modify-private';
 
   let url = 'https://accounts.spotify.com/authorize?' +
     new URLSearchParams({

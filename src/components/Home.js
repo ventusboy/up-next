@@ -1,9 +1,52 @@
 // @flow 
 
 import { useState } from "react";
+import { useEffect, useCallback } from 'react';
+import axios from "axios";
+
 
 export const Home = (props) => {
-    const [code, setCode] = useState('')
+
+    const [piCode, setPiCode]  = useState('');
+    const [code] = useState(new URLSearchParams(window.location.search).get('code'));
+    let baseUrl = process.env.REACT_APP_API_URL
+
+    //const logout = useCallback(
+    function logout() {
+        localStorage.removeItem('authDataTemp')
+    }
+    //, [])
+
+    const getAuthData = useCallback(async ({ code, refresh_token }) => {
+        //expiration.current = null
+
+        if (!code && !refresh_token) {
+            logout()
+            return
+        }
+
+        let { data } = await axios.get(baseUrl + '/getToken', { params: { code, refresh_token } })
+
+        if (data.access_token) {
+            data.exp = Date.now() + (data.expires_in - 300) * 1000 // "expires" 5 mins early
+
+            let tempHeader = {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + data.access_token,
+                "Accept": 'application/json'
+            }
+            data.headers = tempHeader
+            localStorage.setItem('authDataTemp', JSON.stringify(data))
+        }
+
+        return data
+    }, [baseUrl])
+
+    useEffect(() => {
+        getAuthData({ code })
+        console.log(localStorage.getItem('authDataTemp'))
+    }, [code, getAuthData])
+
 
     return (
         <div style={{
@@ -19,15 +62,15 @@ export const Home = (props) => {
                 <div className="group">
                     <input
                         type='text'
-                        value={code}
+                        value={piCode}
                         id="code"
                         required
                         //placeholder='input code here'
                         onChange={(event) => {
-                            setCode(event.target.value)
+                            setPiCode(event.target.value)
                         }}
                     />
-                    <label for="code">
+                    <label htmlFor="code">
                         Display Code
                     </label>
                     <div className="bar"></div>
@@ -42,7 +85,9 @@ export const Home = (props) => {
                     console.log(code)
                 }}
             >
-                Submit
+                <a style={{ textDecoration: 'none', color: 'black' }} href={baseUrl + '/login'}>
+                    Submit
+                </a>
             </button>
         </div>
     );
