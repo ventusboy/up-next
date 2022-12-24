@@ -3,49 +3,71 @@
 import { useState } from "react";
 import { useEffect, useCallback } from 'react';
 import axios from "axios";
+import { getPlaybackState, getUserQueue } from '../functions/functions'
 
 
 export const Home = (props) => {
 
     const [piCode, setPiCode]  = useState('');
-    const [code] = useState(new URLSearchParams(window.location.search).get('code'));
+    const [code, setCode] = useState('');
     let baseUrl = process.env.REACT_APP_API_URL
 
     //const logout = useCallback(
-    function logout() {
+    /*function logout() {
         localStorage.removeItem('authDataTemp')
-    }
+    }*/
     //, [])
 
     const getAuthData = useCallback(async ({ code, refresh_token }) => {
         //expiration.current = null
-
+        console.log(code)
         if (!code && !refresh_token) {
-            logout()
-            return
+            //logout()
+            return null
         }
+        let authData = JSON.parse(localStorage.getItem('authDataTemp'))
 
-        let { data } = await axios.get(baseUrl + '/getToken', { params: { code, refresh_token } })
-
-        if (data.access_token) {
-            data.exp = Date.now() + (data.expires_in - 300) * 1000 // "expires" 5 mins early
-
-            let tempHeader = {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + data.access_token,
-                "Accept": 'application/json'
+        if(authData.exp < Date.now()){
+            let { data } = await axios.get(baseUrl + '/getToken', { params: { code, refresh_token } })
+            if (data.access_token) {
+                data.exp = Date.now() + (data.expires_in - 300) * 1000 // "expires" 5 mins early
+    
+                let tempHeader = {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + data.access_token,
+                    "Accept": 'application/json'
+                }
+                data.headers = tempHeader
+                localStorage.setItem('authDataTemp', JSON.stringify(data))
             }
-            data.headers = tempHeader
-            localStorage.setItem('authDataTemp', JSON.stringify(data))
+            authData = data
         }
+        console.log(authData)
+        return authData.headers
 
-        return data
     }, [baseUrl])
 
     useEffect(() => {
-        getAuthData({ code })
-        console.log(localStorage.getItem('authDataTemp'))
+
+        async function getState(){
+            let headers = await getAuthData({ code })
+            //console.log(localStorage.getItem('authDataTemp'))
+            //console.log(headers)
+            if(headers){
+                let data = await getPlaybackState({headers})
+                console.log(data)
+                let queue = await getUserQueue({headers})
+                console.log(queue)
+            }
+        }
+        setCode(new URLSearchParams(window.location.search).get('code'))
+
+        if(code){
+            getState();
+        }
+
     }, [code, getAuthData])
+
 
 
     return (
