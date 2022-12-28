@@ -1,16 +1,14 @@
+#!/usr/bin/env python
 from signal import signal, SIGTERM, SIGHUP, pause
 from RPLCD.i2c import CharLCD
 import time
-import multiprocessing
+import requests
+import random, string, json
 
-
+macENV = True
+spotifyURL = 'https://api.spotify.com/v1'
 def safe_exit(signum, frame):
     exit(1)
-    
-framebuffer = [
-    "",
-    '',
-]
 
 def write_to_lcd(lcd, string, num_cols):
     """Write the framebuffer out to the specified LCD."""
@@ -19,7 +17,7 @@ def write_to_lcd(lcd, string, num_cols):
     print(string)
     lcd.write_string(string)
 
-def displayString( lcd, num_cols, staticText, string, staticText2="", string2="", delay=0.5):
+def displayString( lcd, num_cols, staticText="", string="", staticText2="", string2="", delay=0.5):
     
     framebuffer = ["",""]
 
@@ -46,58 +44,59 @@ def displayString( lcd, num_cols, staticText, string, staticText2="", string2=""
             k = 0 + len(staticText2)
         
         time.sleep(delay)    
-        
-
-class loop_string(multiprocessing.Process):
-    framebuffer = ["",""]
-
-    def __init__(self, string, string2, lcd, num_cols, delay=0.5):
-        super(loop_string, self).__init__()
-        self.string = string
-        self.string2 = string2
-        self.lcd = lcd
-        self.num_cols = num_cols
-        self.delay = delay
-                 
-    def run(self):
-        
-        padding = ' ' * self.num_cols
-        s = padding + self.string + padding
-        
-        padding2 = ' ' * self.num_cols
-        s2 = padding2 + self.string2 + padding2
-        longest = max(len(s), len(s2))
-        i = self.num_cols
-        k = self.num_cols
-        while True:
-            #for i in range(len(s) - self.num_cols + 1):
-            
-            framebuffer[0] = s[i:i+self.num_cols]#.ljust(self.num_cols)
-            framebuffer[1] = s2[k:k+self.num_cols]#.ljust(self.num_cols)
-            joinedString = framebuffer[0] + "\r\n" + framebuffer[1]
-            write_to_lcd(self.lcd, joinedString, self.num_cols)
-            i+=1
-            k+=1
-            if k == len(s2) - self.num_cols:
-                k = 0 #self.num_cols
-            if i == len(s) - self.num_cols:
-                i = 0 #self.num_cols
-            time.sleep(self.delay)
-        
 try:
     signal(SIGTERM, safe_exit)
     signal(SIGHUP, safe_exit)
-    lcd = CharLCD('PCF8574', 0x27)
-    lcd.clear()
-    
+
+    headerEndpoint = 'http://127.0.0.1:5001/upnext-8f097/us-central1/app/getCode/'
     long_string = 'Feel The Volume - JAUZ'
     long_string2 = 'The Calling - Tchami'
-    
-    displayString(lcd, 16, "Now Playing:", long_string, "Next Up:", long_string2)
 
+    piCode = ''.join(random.choices(string.ascii_uppercase, k=5))
+    piCode = 'mikal'
+    print(piCode)
+    if not macENV:
+        lcd = CharLCD('PCF8574', 0x27)
+        lcd.clear()
+        displayString(lcd, 16, staticText="Your code:" +  piCode, string2 = "At upnext.mikalyoung.com")
+    timeout = 3
+    count = 0
+    headers = ''
+    #time.sleep(timeout)
+    while True:
+        headers = requests.get(headerEndpoint + piCode).json()
+        #if type(headers) == 'dict':
+            #header = json.load(header)
+        #print(headers)
+        count += timeout
+        if count%15 == 0:
+            print('miss')
+        if headers["access_token"] or count >= 900 : #15 min wait time
+            #print(headers)
+            break
+        time.sleep(timeout)
 
+    #displayString(lcd, 16, "Now Playing:", long_string, "Next Up:", long_string2)
+    """for x in headers:
+        headers[x] = str(headers[x])"""
+    while headers["access_token"]:
+        #headersString = json.dumps(headers)
+        headersString = {
+            'Authorization': 'Bearer ' + headers['access_token'],
+            'Content-Type': 'application/json'
+        }
+        #print(headersString)
+        #queue = requests.get(spotifyURL + '/me/player/queue', headers = headersString).json()
+        nowPlaying = requests.get(spotifyURL + '/me/player/currently-playing', headers = headersString).json()
+        print(nowPlaying)
+        try:
+            print(nowPlaying["item"]["name"])
+        except:
+            print("nothing is playing at the moment")
+        time.sleep(10)
 except KeyboardInterrupt:
     pass
 finally:
-    lcd.clear()
+    if not macENV:
+        lcd.clear()
 

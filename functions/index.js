@@ -34,7 +34,7 @@ app.get('/getCode/:piCode', async (req, res) => {
         res.send(new Error('Invalid piCode'))
     }
 
-    let tokenData = await db.collection('code-piCode-pair').doc(piCode).get()//.where('userCode', 'in', [code] ).get()
+    let tokenData = await db.collection('code-piCode-pair').doc(piCode).get()
     if(tokenData.exists){
         res.send(tokenData.data())
     } else {
@@ -57,13 +57,10 @@ app.get('/login', (req, res) => {
         }
         return text;
     };
-    let { userCode } = req.query
-    //if(!userCode){
-      //  res.redirect('back')
-    //}
+    //let { userCode } = req.query
 
     var state = generateRandomString(16);
-    var scope = 'user-read-private user-read-email streaming user-read-playback-state user-library-read playlist-read-private playlist-modify-private';
+    var scope = 'user-read-private user-read-email streaming user-read-playback-state';
 
     let url = 'https://accounts.spotify.com/authorize?' +
         new URLSearchParams({
@@ -76,7 +73,7 @@ app.get('/login', (req, res) => {
     //db.collection('code-state-pair').doc(state).set({ userCode })
     //db.collection('userCodes').doc(userCode).set({ userCode })
 
-    console.log(url)
+    //console.log(url)
     //db. set state with code
 
     res.redirect(url);
@@ -85,7 +82,7 @@ app.get('/login', (req, res) => {
 app.get('/getToken', async (req, res) => {
     const { URLSearchParams } = require('url');
     const axios = require('axios');
-    console.log(req.query)
+    //console.log(req.query)
     let code = req.query.code || null;
     let refresh_token = req.query.refresh_token || null
     let url = 'https://accounts.spotify.com/api/token'
