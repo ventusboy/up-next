@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 from signal import signal, SIGTERM, SIGHUP, pause
 from RPLCD.i2c import CharLCD
+import multiprocessing
 import time
 import requests
-import random, string, json
+import random, string, json, os
 
-macENV = True
+macENV = os.environ.get('MAC')
 spotifyURL = 'https://api.spotify.com/v1'
+
 def safe_exit(signum, frame):
     exit(1)
 
@@ -49,6 +51,8 @@ try:
     signal(SIGHUP, safe_exit)
 
     headerEndpoint = 'http://127.0.0.1:5001/upnext-8f097/us-central1/app/getCode/'
+    if not macENV:
+        headerEndpoint = 'https://us-central1-upnext-8f097.cloudfunctions.net/app/getCode/'
     long_string = 'Feel The Volume - JAUZ'
     long_string2 = 'The Calling - Tchami'
 
@@ -58,7 +62,7 @@ try:
     if not macENV:
         lcd = CharLCD('PCF8574', 0x27)
         lcd.clear()
-        displayString(lcd, 16, staticText="Your code:" +  piCode, string2 = "At upnext.mikalyoung.com")
+        displayString(lcd, 16, staticText="Your code: " +  piCode, string2 = "At upnext.mikalyoung.com")
     timeout = 3
     count = 0
     headers = ''
@@ -72,7 +76,7 @@ try:
         if count%15 == 0:
             print('miss')
         if headers["access_token"] or count >= 900 : #15 min wait time
-            #print(headers)
+            print(headers)
             break
         time.sleep(timeout)
 
@@ -86,11 +90,18 @@ try:
             'Content-Type': 'application/json'
         }
         #print(headersString)
-        #queue = requests.get(spotifyURL + '/me/player/queue', headers = headersString).json()
+        queue = requests.get(spotifyURL + '/me/player/queue', headers = headersString).json()
         nowPlaying = requests.get(spotifyURL + '/me/player/currently-playing', headers = headersString).json()
         print(nowPlaying)
         try:
             print(nowPlaying["item"]["name"])
+            nowPlaying = nowPlaying["item"]["name"]
+            nextUp = queue["queue"][0]
+            if nextUp:
+                nextUp = ["name"]
+            if not macENV:
+                displayString(lcd, 16, string="Now Playing: " + nowPlaying, string2="Next Up: " + nextUp)
+                #displayString(lcd, 16, staticText="Your code: " +  piCode, string2 = "At upnext.mikalyoung.com")
         except:
             print("nothing is playing at the moment")
         time.sleep(10)
