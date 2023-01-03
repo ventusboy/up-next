@@ -29,16 +29,25 @@ app.get('/', async (req, res) => {
 })
 
 app.get('/getCode/:piCode', async (req, res) => {
-    let {piCode} = req.params
-    if(piCode.length < 5){
+    let { piCode } = req.params
+    if (piCode.length < 5) {
         res.send(new Error('Invalid piCode'))
     }
 
-    let tokenData = await db.collection('code-piCode-pair').doc(piCode).get()
-    if(tokenData.exists){
-        res.send(tokenData.data())
+    let tokenDataRef = db.collection('code-piCode-pair').doc(piCode)
+    let tokenData = await tokenDataRef.get()
+    if (tokenData.exists) {
+        data = tokenData.data()
+        if(data.exp > Date.now() / 1000)
+            res.send(data)
+        else {
+            tokenDataRef.delete()
+            res.status(401).send({
+                error: 'access token has expired'
+            })
+        }
     } else {
-        res.status(500).send({
+        res.status(404).send({
             error: 'piCode DNE'
         })
     }
@@ -108,7 +117,11 @@ app.get('/getToken', async (req, res) => {
         let { data } = await axios.post(url, formData, { headers: headers })
         //console.log(data)
         let { piCode } = req.query
-        db.collection('code-piCode-pair').doc(piCode).set({ ...data, piCode },{ merge: true })
+        db.collection('code-piCode-pair').doc(piCode).set({
+            ...data,
+            piCode,
+            exp: Math.floor(Date.now() / 1000) + 3600
+        }, { merge: true })
         res.send(data)
     } catch (error) {
         console.error(error)
