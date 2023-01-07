@@ -9,15 +9,17 @@ import string
 import json
 import os
 from dotenv import load_dotenv, dotenv_values
+#pip install python-dotenv
 import logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
 
 # load_dotenv()
 config = dotenv_values(".env.local")
-macENV = config["MAC"]
+macENV = False
+if 'MAC' in config:
+    macENV = config["MAC"]
 
-print('env is ', config)
 print(macENV)
 
 spotifyURL = 'https://api.spotify.com/v1'
@@ -78,32 +80,44 @@ def displayPlaybackInfo(conn2):
         lcd.clear()
         #piCode = conn2.recv()
         #displayLoginInfo(lcd, piCode)
+    storedString = ''
         
     while True:
         #if not conn2.poll():
         #    return
-        storedNowPlaying = ''
+        
         data = conn2.recv()
         print(data)
 
         if macENV:
             continue
         
-        if data["piCode"]:
-            displayLoginInfo(lcd, data["piCode"])
-            continue
 
-        if storedNowPlaying == data["nowPlaying"]:
-            continue
-        
-        storedNowPlaying = data["nowPlaying"]
-        displayString(
-            lcd, 16,
-            staticText=data["staticText"],
-            string=data["string"],
-            staticText2=data["staticText2"],
-            string2=data["string2"]
-        )
+        if data.get("piCode"):
+            p1 = multiprocessing.Process(
+                target=displayLoginInfo,
+                args=(lcd, data["piCode"],))
+            p1.start()
+            data = conn2.recv()
+            p1.kill()
+            p1.join()
+            #continue
+
+        if storedString == data.get("string"):
+            continue            
+        print("printing to screen")
+        storedString = data.get("string")
+        p1 = multiprocessing.Process(
+            target=displayString,
+            args=(lcd, 16,
+            "",data.get("string"),
+            "",data.get("string2"),))
+
+        p1.start()
+        #time.sleep(1000)
+        data = conn2.poll(None)
+        p1.kill()
+        p1.join()
 
 def getNewAccessToken(refresh_token):
     try:
@@ -194,7 +208,3 @@ if __name__ == '__main__':
     except Exception as e:
         print('Exception has occured: ', e)
         logger.exception(e)
-
-    finally:
-        if not macENV:
-            lcd.clear()
