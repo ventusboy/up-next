@@ -1,7 +1,5 @@
-import { Home } from './components/Home';
 import './main.scss';
-import './input.scss';
-
+import { Home } from './components/Home';
 
 function App() {
   return (

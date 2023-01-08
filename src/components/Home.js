@@ -1,29 +1,31 @@
 // @flow 
-
-import {  useRef, useState } from "react";
-import { useEffect, useCallback } from 'react';
+import '../input.scss';
+import { useRef, useState } from "react";
+import { useEffect } from 'react';
 import axios from "axios";
 import { getPlaybackState, getUserQueue } from '../functions/functions'
 
 
 export const Home = (props) => {
 
-    const [piCode, setPiCode]  = useState(localStorage.getItem('piCode') || '');
+    const [piCode, setPiCode] = useState(localStorage.getItem('piCode') || '');
     const [initialData, setInitialData] = useState('');
     let isMounted = useRef(false)
     let baseUrl = process.env.REACT_APP_API_URL
 
 
-    const getAuthData = useCallback(async ({ code, refresh_token }) => {
+    async function getAuthData({ code, refresh_token }) {
+        let baseUrl = process.env.REACT_APP_API_URL
+
         console.log(code)
-        if (!code ){
+        if (!code) {
             return null
         }
         let authData = JSON.parse(localStorage.getItem('authDataTemp'))
 
 
-        if(!authData || authData.exp < Date.now() ){
-            
+        if (!authData || authData.exp < Date.now()) {
+
             let piCode = localStorage.getItem('piCode') || ''
             let { data } = await axios.get(baseUrl + '/getToken', { params: { code, refresh_token, piCode } })
 
@@ -43,20 +45,22 @@ export const Home = (props) => {
         console.log(authData)
         return authData.headers
 
-    }, [baseUrl])
+    }
 
     useEffect(() => {
 
-        async function init({ code }){
+        async function init({ code }) {
             let headers = await getAuthData({ code })
-            if(headers){
-                let data = await getPlaybackState({headers})
+            let baseUrl = process.env.REACT_APP_API_URL
+
+            if (headers && baseUrl) {
+                let data = await getPlaybackState({ headers })
                 console.log(data)
-                let queue = await getUserQueue({headers})
+                let queue = await getUserQueue({ headers })
                 console.log(queue)
             }
         }
-        if(isMounted.current){
+        if (isMounted.current) {
             return
         }
 
@@ -64,22 +68,22 @@ export const Home = (props) => {
         let tempAuth = {
             code: urlObj.get('code')
         }
-        if(tempAuth.code){
+        if (tempAuth.code) {
             setInitialData(tempAuth)
         }
 
-        if(initialData.code && isMounted.current === false){
+        if (initialData.code && isMounted.current === false) {
             init(initialData);
             isMounted.current = true
         }
 
-    }, [ initialData, isMounted, getAuthData])
+    }, [initialData, isMounted])
 
 
 
     return (
         <div style={{
-            zIndex: 0,
+            //zIndex: 0,
             position: 'relative',
             display: 'flex',
             flexDirection: 'column',
@@ -110,13 +114,13 @@ export const Home = (props) => {
             <button
                 className="button-68"
             >
-                <a 
-                    style={{ textDecoration: 'none' }} 
+                <a
+                    style={{ textDecoration: 'none' }}
                     href={piCode ? baseUrl + `/login?userCode=${piCode}` : '#'}
                     onClick={(() => {
-                        if(piCode)
+                        if (piCode)
                             localStorage.setItem('piCode', piCode)
-                    })}                
+                    })}
                 >
                     Connect
                 </a>

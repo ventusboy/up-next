@@ -1,5 +1,4 @@
 import axios from "axios";
-//const baseUrl = process.env.REACT_APP_API_URL;
 const spotifyUrl = 'https://api.spotify.com/v1'
 
 export async function getPlaybackState({ headers }){
