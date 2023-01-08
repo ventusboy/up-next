@@ -8,8 +8,8 @@ function App() {
     <div className="App">
       <div
         className='welcome-txt'
->
-        Welcome, please login to connect your device
+      >
+        Welcome, please enter your code to connect your device
       </div>
       <Home></Home>
     </div>

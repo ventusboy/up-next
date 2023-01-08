@@ -8,38 +8,27 @@ import { getPlaybackState, getUserQueue } from '../functions/functions'
 
 export const Home = (props) => {
 
-    const [piCode, setPiCode]  = useState('');
+    const [piCode, setPiCode]  = useState(localStorage.getItem('piCode') || '');
     const [initialData, setInitialData] = useState('');
     let isMounted = useRef(false)
     let baseUrl = process.env.REACT_APP_API_URL
 
-    //const logout = useCallback(
-    /*function logout() {
-        localStorage.removeItem('authDataTemp')
-    }*/
-    //, [])
 
-    const getAuthData = useCallback(async ({ code, refresh_token, state }) => {
-        //expiration.current = null
+    const getAuthData = useCallback(async ({ code, refresh_token }) => {
         console.log(code)
-        //console.log(new URLSearchParams(window.location.search))
-        if (!code ){//|| !state)) {
-            //logout()
+        if (!code ){
             return null
         }
         let authData = JSON.parse(localStorage.getItem('authDataTemp'))
 
 
-        if(!authData || authData.exp < Date.now() ){//|| !authData.state){
-            //let { state } = new URLSearchParams(window.location.search).get('state')
-            //console.log(state)
+        if(!authData || authData.exp < Date.now() ){
             
             let piCode = localStorage.getItem('piCode') || ''
             let { data } = await axios.get(baseUrl + '/getToken', { params: { code, refresh_token, piCode } })
 
             if (data.access_token) {
                 data.exp = Date.now() + (data.expires_in - 300) * 1000 // "expires" 5 mins early
-                //data.state = state
                 data.piCode = piCode
                 let tempHeader = {
                     'Content-Type': 'application/json',
@@ -59,10 +48,7 @@ export const Home = (props) => {
     useEffect(() => {
 
         async function init({ code }){
-            //let { state } = new URLSearchParams(window.location.search).get('state')
             let headers = await getAuthData({ code })
-            //console.log(localStorage.getItem('authDataTemp'))
-            //console.log(headers)
             if(headers){
                 let data = await getPlaybackState({headers})
                 console.log(data)
@@ -76,10 +62,8 @@ export const Home = (props) => {
 
         let urlObj = new URLSearchParams(window.location.search)
         let tempAuth = {
-            //state: urlObj.get('state'),
             code: urlObj.get('code')
         }
-        console.log(tempAuth)
         if(tempAuth.code){
             setInitialData(tempAuth)
         }
@@ -89,7 +73,7 @@ export const Home = (props) => {
             isMounted.current = true
         }
 
-    }, [ initialData,isMounted, getAuthData])
+    }, [ initialData, isMounted, getAuthData])
 
 
 
@@ -110,7 +94,6 @@ export const Home = (props) => {
                         value={piCode}
                         id="code"
                         required
-                        //placeholder='input code here'
                         onChange={(event) => {
                             setPiCode(event.target.value)
                         }}
@@ -126,18 +109,16 @@ export const Home = (props) => {
 
             <button
                 className="button-68"
-                /*onClick={() => {
-                    console.log(initialData)
-                }}*/
             >
                 <a 
-                style={{ textDecoration: 'none', color: 'black' }} 
-                href={piCode ? baseUrl + `/login?userCode=${piCode}` : ''}
-                onClick={(() => {
-                    localStorage.setItem('piCode', piCode)
-                })}                
+                    style={{ textDecoration: 'none' }} 
+                    href={piCode ? baseUrl + `/login?userCode=${piCode}` : '#'}
+                    onClick={(() => {
+                        if(piCode)
+                            localStorage.setItem('piCode', piCode)
+                    })}                
                 >
-                    Submit
+                    Connect
                 </a>
             </button>
         </div>
