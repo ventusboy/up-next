@@ -11,11 +11,10 @@ export const Home = (props) => {
     const [piCode, setPiCode] = useState(localStorage.getItem('piCode') || '');
     const [initialData, setInitialData] = useState('');
     let isMounted = useRef(false)
-    let baseUrl = process.env.REACT_APP_API_URL
+    const baseUrl = process.env.REACT_APP_API_URL || ''
 
 
-    async function getAuthData({ code, refresh_token }) {
-        let baseUrl = process.env.REACT_APP_API_URL
+    async function getAuthData({ code, refresh_token, baseUrl }) {
 
         console.log(code)
         if (!code) {
@@ -44,15 +43,12 @@ export const Home = (props) => {
         }
         console.log(authData)
         return authData.headers
-
     }
 
     useEffect(() => {
 
         async function init({ code }) {
-            let headers = await getAuthData({ code })
-            let baseUrl = process.env.REACT_APP_API_URL
-
+            let headers = await getAuthData({ code, baseUrl })
             if (headers && baseUrl) {
                 let data = await getPlaybackState({ headers })
                 console.log(data)
@@ -77,7 +73,7 @@ export const Home = (props) => {
             isMounted.current = true
         }
 
-    }, [initialData, isMounted])
+    }, [initialData, isMounted, baseUrl])
 
 
 
