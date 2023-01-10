@@ -1,83 +1,32 @@
 #!/usr/bin/env python
+import time, os, json, string, random, multiprocessing
+import requests, logging
+from lcdController import LCDController
+
 from signal import signal, SIGTERM, SIGHUP, pause
-from RPLCD.i2c import CharLCD
-import multiprocessing
-import time
-import requests
-import random
-import string
-import json
-import os
-from dotenv import load_dotenv, dotenv_values
-#pip install python-dotenv
-import logging
+from dotenv import load_dotenv, dotenv_values #pip install python-dotenv
+
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
 
-# load_dotenv()
 config = dotenv_values(".env.local")
-macENV = False
-if 'MAC' in config:
-    macENV = config["MAC"]
 
-print(macENV)
+HAS_LCD = False
+if 'HAS_LCD' in config:
+    HAS_LCD = config["HAS_LCD"]
 
 spotifyURL = 'https://api.spotify.com/v1'
 baseURL = 'http://127.0.0.1:5001/upnext-8f097/us-central1/app'
-if not macENV:
+if HAS_LCD:
     baseURL = 'https://us-central1-upnext-8f097.cloudfunctions.net/app'
 
 
 def safe_exit(signum, frame):
     exit(1)
 
-
-def write_to_lcd(lcd, string, num_cols):
-    """Write the framebuffer out to the specified LCD."""
-    lcd.home()
-    # lcd.cursor_pos = (row, 0)
-    print(string)
-    lcd.write_string(string)
-
-
-def displayString(lcd, num_cols, staticText="", string="", staticText2="", string2="", delay=0.5):
-
-    framebuffer = ["", ""]
-
-    padding = ' ' * num_cols
-    s = padding + string + padding
-    s2 = padding + string2 + padding
-
-    longest = max(len(s), len(s2))
-
-    i = num_cols
-    k = num_cols
-    while True:
-
-        framebuffer[0] = staticText + s[i:i+num_cols - len(staticText)]
-        framebuffer[1] = staticText2 + s2[k:k+num_cols - len(staticText2)]
-
-        joinedString = framebuffer[0] + "\r\n" + framebuffer[1]
-        write_to_lcd(lcd, joinedString, num_cols)
-        i += 1
-        k += 1
-        if i == len(s) - num_cols:  # + len(staticText):
-            i = 0 + len(staticText)
-        if k == len(s2) - num_cols:  # + len(staticText2):
-            k = 0 + len(staticText2)
-
-        time.sleep(delay)
-
-def displayLoginInfo(lcd, piCode):
-    displayString(lcd, 16, 
-        staticText="Your code: " + piCode, 
-        string2="At upnext.mikalyoung.com")
-
 def displayPlaybackInfo(conn2):
     # calls functions that start with display
-    if not macENV:
-        lcd = CharLCD('PCF8574', 0x27)
-        lcd.clear()
+    
         #piCode = conn2.recv()
         #displayLoginInfo(lcd, piCode)
     storedString = ''
@@ -89,7 +38,7 @@ def displayPlaybackInfo(conn2):
         data = conn2.recv()
         print(data)
 
-        if macENV:
+        if not HAS_LCD:
             continue
         
 
@@ -159,13 +108,19 @@ if __name__ == '__main__':
     try:
         # the user has entered their code 
         conn1, conn2 = multiprocessing.Pipe()
-        lcdProcess = multiprocessing.Process(
+        controller = LCDController()
+        """lcdProcess = multiprocessing.Process(
             target=displayPlaybackInfo,
             args=(conn2,))
-        lcdProcess.start()
+        lcdProcess.start()"""
+        controller.displayLoginInfo(piCode)
+        while False:
+            time.sleep(10)
 
-        conn1.send({"piCode": piCode})
+
+        #conn1.send({"piCode": piCode})
         headers = getHeaders(piCode)
+        previousString = ""
 
         #run as long as the access token is valid
         while headers["access_token"]:
@@ -185,21 +140,21 @@ if __name__ == '__main__':
                     headers = getNewAccessToken(headers["refresh_token"])
                 else:
                     #display login info, block until valid
-                    conn1.send({"piCode": piCode})
+                    #conn1.send({"piCode": piCode})
+                    controller.displayLoginInfo(piCode)
                     headers = getHeaders(piCode)
 
             try:
                 nowPlaying = nowPlaying["item"]["name"]
-                nextUp = queue["queue"][0]
-
-                if nextUp:
-                    nextUp = nextUp["name"]
+                nextUp = queue["queue"][0]["name"]
+                
+                #only update if available and changed
+                if nowPlaying + nextUp != previousString:
                     print(nextUp, ' ', nowPlaying)
-                    info = {
-                        "string": "Now Playing: " + nowPlaying,
-                        "string2": "Next Up: " + nextUp
-                    }
-                    conn1.send(info)
+                    previousString = nowPlaying + nextUp
+                    controller.setString(0, "Now:", nowPlaying)
+                    controller.setString(1, "Next:", nextUp)
+                    controller.updateLCD()
             except:
                 print("nothing is playing at the moment")
             time.sleep(5)
